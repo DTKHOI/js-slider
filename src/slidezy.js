@@ -24,6 +24,7 @@ Slidezy.prototype._createTrack = function () {
     this.track.className = "slidezy-track";
 
     this.slides.forEach((slide) => {
+        slide.style.flexBasis = `calc(100% / ${this.opt.items})`;
         slide.classList.add("slidezy-slide");
         this.track.appendChild(slide);
     });
@@ -53,8 +54,12 @@ Slidezy.prototype._createNavigation = function () {
 };
 
 Slidezy.prototype.moveSlide = function (step) {
-    this.currentIndex = Math.min(Math.max(this.currentIndex + step, 0), this.slides.length - 3);
+    if (this.opt.loop) {
+        this.currentIndex = (this.currentIndex + step + this.slides.length) % this.slides.length;
+    } else {
+        this.currentIndex = Math.min(Math.max(this.currentIndex + step, 0), this.slides.length - this.opt.items);
+    }
 
-    this.offset = -(this.currentIndex * (100 / 3));
+    this.offset = -(this.currentIndex * (100 / this.opt.items));
     this.track.style.transform = `translateX(${this.offset}%)`;
 };

@@ -5,7 +5,7 @@ function Slidezy(selector, options = {}) {
         return;
     }
 
-    this.opt = Object.assign({ items: 1, loop: false }, options);
+    this.opt = Object.assign({ items: 1, loop: false, speed: 300 }, options);
     this.slides = Array.from(this._container.children);
 
     this.currentIndex = this.opt.loop ? this.opt.items : 0;
@@ -25,10 +25,12 @@ Slidezy.prototype._createTrack = function () {
     this.track = document.createElement("div");
     this.track.className = "slidezy-track";
 
-    const cloneHead = this.slides.slice(-this.opt.items).map((node) => node.cloneNode(true));
-    const cloneTail = this.slides.slice(0, this.opt.items).map((node) => node.cloneNode(true));
+    if (this.opt.loop) {
+        const cloneHead = this.slides.slice(-this.opt.items).map((node) => node.cloneNode(true));
+        const cloneTail = this.slides.slice(0, this.opt.items).map((node) => node.cloneNode(true));
 
-    this.slides = cloneHead.concat(this.slides.concat(cloneTail));
+        this.slides = cloneHead.concat(this.slides.concat(cloneTail));
+    }
 
     this.slides.forEach((slide) => {
         slide.style.flexBasis = `calc(100% / ${this.opt.items})`;
@@ -64,11 +66,12 @@ Slidezy.prototype.moveSlide = function (step) {
     if (this._isAnimation) return;
     this._isAnimation = true;
 
-    if (this.opt.loop) {
-        this.currentIndex = (this.currentIndex + step + this.slides.length) % this.slides.length;
+    const maxIndex = this.slides.length - this.opt.items;
 
-        this.track.ontransitionend = () => {
-            const maxIndex = this.slides.length - this.opt.items;
+    this.currentIndex = Math.min(Math.max(this.currentIndex + step, 0), maxIndex);
+
+    setTimeout(() => {
+        if (this.opt.loop) {
             if (this.currentIndex <= 0) {
                 this.currentIndex = maxIndex - this.opt.items;
             } else if (this.currentIndex >= maxIndex) {
@@ -76,17 +79,23 @@ Slidezy.prototype.moveSlide = function (step) {
             }
 
             this._updatePostion(true);
-            this._isAnimation = false;
-        };
-    } else {
-        this.currentIndex = Math.min(Math.max(this.currentIndex + step, 0), this.slides.length - this.opt.items);
-    }
+        }
+        this._isAnimation = false;
+    }, this.opt.speed);
 
     this._updatePostion();
 };
 
 Slidezy.prototype._updatePostion = function (instant = false) {
-    this.track.style.transition = instant ? "none" : "transform 0.3s";
+    this.track.style.transition = instant ? "none" : `transform ${this.opt.speed}ms`;
     this.offset = -(this.currentIndex * (100 / this.opt.items));
     this.track.style.transform = `translateX(${this.offset}%)`;
 };
+
+// Todo
+// 1. Làm navigation tab
+// 2. Option thay đổi nội dung bên trong nút điều hướng
+// 3. Làm auto play, tự động chuyển slide khi có option autoPlay: true
+// 4. Làm option quyết định lần next/prev là bao nhiêu slide.
+//  Ví dụ: có 3 slides trong viewport, khi bấm next/prev sẽ chuyển sang
+//  cụm 3 slides kế tiếp

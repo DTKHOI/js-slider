@@ -51,9 +51,17 @@
       <div>slide 5</div>
       <div>slide 6</div>
     </div>
+    <button class="next-button">Prev</button>
+    <button class="prev-button">Next</button>
     <script src="./src/slidezy.js"></script>
     <script>
-      const mySlider = new Slidezy("#my-slider", { loop: true, items: 3 });
+      const mySlider = new Slidezy("#my-slider", {
+        loop: true,
+        items: 3,
+        nextButton: ".next-button",
+        prevButton: ".prev-button",
+        slideBy: 2,
+      });
     </script>
   </body>
 </html>

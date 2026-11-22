@@ -1,71 +1,94 @@
 function Slidezy(selector, options = {}) {
-  this._container = document.querySelector(selector);
-  if (!this._container) {
-    console.error(`Error: Container ${selector} not found!`);
+  this.container = document.querySelector(selector);
+  if (!this.container) {
+    console.error(`Slidezy: Container "${selector}" not found!`);
     return;
   }
 
   this.opt = Object.assign(
     {
       items: 1,
-      loop: false,
       speed: 300,
+      loop: false,
       nav: true,
-      control: true,
-      controlText: ["<", ">"],
+      controls: true,
+      controlsText: ["<", ">"],
       prevButton: null,
       nextButton: null,
       slideBy: 1,
     },
     options,
   );
-  this.slides = Array.from(this._container.children);
-
-  this.currentIndex = this.opt.loop ? this.opt.items : 0;
+  this.originalSlides = Array.from(this.container.children);
+  this.slides = this.originalSlides.slice(0);
+  this.currentIndex = this.opt.loop ? this._getCloneCount() : 0;
 
   this._init();
-  this._updatePostion();
+  this._updatePosition();
 }
 
 Slidezy.prototype._init = function () {
+  this.container.classList.add("slidezy-wrapper");
+
   this._createContent();
   this._createTrack();
 
-  if (this.opt.control) this._createControls();
+  const showNav = this._getSlideCount() > this.opt.items;
 
-  this._container.appendChild(this.content);
+  if (this.opt.controls && showNav) {
+    this._createControls();
+  }
 
-  if (this.opt.nav) this._createNavs();
+  if (this.opt.nav && showNav) {
+    this._createNav();
+  }
 };
 
 Slidezy.prototype._createContent = function () {
-  this._container.classList.add("slidezy-wrapper");
   this.content = document.createElement("div");
   this.content.className = "slidezy-content";
+  this.container.appendChild(this.content);
+};
+
+Slidezy.prototype._getCloneCount = function () {
+  const slideCount = this._getSlideCount();
+
+  if (slideCount <= this.opt.items) return 0;
+
+  const slideBy = this._getSlideBy();
+  const cloneCount = slideBy + this.opt.items;
+
+  return cloneCount > slideCount ? slideCount : cloneCount;
 };
 
 Slidezy.prototype._createTrack = function () {
   this.track = document.createElement("div");
   this.track.className = "slidezy-track";
 
-  if (this.opt.loop) {
+  const cloneCount = this._getCloneCount();
+
+  if (this.opt.loop && cloneCount > 0) {
     const cloneHead = this.slides
-      .slice(-this.opt.items)
+      .slice(-cloneCount)
       .map((node) => node.cloneNode(true));
     const cloneTail = this.slides
-      .slice(0, this.opt.items)
+      .slice(0, cloneCount)
       .map((node) => node.cloneNode(true));
 
     this.slides = cloneHead.concat(this.slides.concat(cloneTail));
   }
 
   this.slides.forEach((slide) => {
-    slide.style.flexBasis = `calc(100% / ${this.opt.items})`;
     slide.classList.add("slidezy-slide");
+    slide.style.flexBasis = `calc(100% / ${this.opt.items})`;
     this.track.appendChild(slide);
   });
 
   this.content.appendChild(this.track);
+};
+
+Slidezy.prototype._getSlideBy = function () {
+  return this.opt.slideBy === "page" ? this.opt.items : this.opt.slideBy;
 };
 
 Slidezy.prototype._createControls = function () {
@@ -77,34 +100,28 @@ Slidezy.prototype._createControls = function () {
     : document.createElement("button");
 
   if (!this.opt.prevButton) {
-    this.prevBtn.textContent = this.opt.controlText[0];
+    this.prevBtn.textContent = this.opt.controlsText[0];
     this.prevBtn.className = "slidezy-prev";
-    this.content.append(this.prevBtn);
+    this.content.appendChild(this.prevBtn);
   }
 
   if (!this.opt.nextButton) {
-    this.nextBtn.textContent = this.opt.controlText[0];
-    this.nextBtn.className = "slidezy-prev";
-    this.content.append(this.nextBtn);
+    this.nextBtn.textContent = this.opt.controlsText[1];
+    this.nextBtn.className = "slidezy-next";
+    this.content.appendChild(this.nextBtn);
   }
 
-  const stepSize =
-    this.opt.slideBy === "page" ? this.opt.items : this.opt.slideBy;
+  const slideBy = this._getSlideBy();
 
-  this.prevBtn.onclick = () => {
-    this.moveSlide(stepSize);
-  };
-
-  this.nextBtn.onclick = () => {
-    this.moveSlide(stepSize);
-  };
+  this.prevBtn.onclick = () => this.moveSlide(-slideBy);
+  this.nextBtn.onclick = () => this.moveSlide(slideBy);
 };
 
 Slidezy.prototype._getSlideCount = function () {
-  return this.slides.length - (this.opt.loop ? this.opt.items * 2 : 0);
+  return this.originalSlides.length;
 };
 
-Slidezy.prototype._createNavs = function () {
+Slidezy.prototype._createNav = function () {
   this.navWrapper = document.createElement("div");
   this.navWrapper.className = "slidezy-nav";
 
@@ -113,26 +130,26 @@ Slidezy.prototype._createNavs = function () {
 
   for (let i = 0; i < pageCount; i++) {
     const dot = document.createElement("button");
-    dot.classList.add("slidezy-dot");
+    dot.className = "slidezy-dot";
 
     if (i === 0) dot.classList.add("active");
 
     dot.onclick = () => {
       this.currentIndex = this.opt.loop
-        ? i * this.opt.items + this.opt.items
+        ? i * this.opt.items + this._getCloneCount()
         : i * this.opt.items;
-      this._updatePostion();
+      this._updatePosition();
     };
 
     this.navWrapper.appendChild(dot);
   }
 
-  this._container.appendChild(this.navWrapper);
+  this.container.appendChild(this.navWrapper);
 };
 
 Slidezy.prototype.moveSlide = function (step) {
-  if (this._isAnimation) return;
-  this._isAnimation = true;
+  if (this._isAnimating) return;
+  this._isAnimating = true;
 
   const maxIndex = this.slides.length - this.opt.items;
 
@@ -141,26 +158,30 @@ Slidezy.prototype.moveSlide = function (step) {
   setTimeout(() => {
     if (this.opt.loop) {
       const slideCount = this._getSlideCount();
-      if (this.currentIndex < this.opt.items) {
+
+      if (this.currentIndex < this._getCloneCount()) {
         this.currentIndex += slideCount;
-        this._updatePostion(true);
+        this._updatePosition(true);
       } else if (this.currentIndex > slideCount) {
         this.currentIndex -= slideCount;
-        this._updatePostion(true);
+        this._updatePosition(true);
       }
     }
-    this._isAnimation = false;
+    this._isAnimating = false;
   }, this.opt.speed);
 
-  this._updatePostion();
+  this._updatePosition();
 };
 
 Slidezy.prototype._updateNav = function () {
+  if (!this.navWrapper) return;
+
   let realIndex = this.currentIndex;
 
   if (this.opt.loop) {
-    const slideCount = this.slides.length - this.opt.items * 2;
-    realIndex = (this.currentIndex - this.opt.items + slideCount) % slideCount;
+    const slideCount = this._getSlideCount();
+    realIndex =
+      (this.currentIndex - this._getCloneCount() + slideCount) % slideCount;
   }
 
   const pageIndex = Math.floor(realIndex / this.opt.items);
@@ -171,14 +192,16 @@ Slidezy.prototype._updateNav = function () {
   });
 };
 
-Slidezy.prototype._updatePostion = function (instant = false) {
+Slidezy.prototype._updatePosition = function (instant = false) {
   this.track.style.transition = instant
     ? "none"
-    : `transform ${this.opt.speed}ms`;
+    : `transform ease ${this.opt.speed}ms`;
   this.offset = -(this.currentIndex * (100 / this.opt.items));
   this.track.style.transform = `translateX(${this.offset}%)`;
 
-  if (this.opt.nav && !instant) this._updateNav();
+  if (this.opt.nav && !instant) {
+    this._updateNav();
+  }
 };
 
 // Todo

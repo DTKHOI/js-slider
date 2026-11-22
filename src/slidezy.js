@@ -193,7 +193,7 @@ Slidezy.prototype.moveSlide = function (step) {
       if (this.currentIndex < this._getCloneCount()) {
         this.currentIndex += slideCount;
         this._updatePosition(true);
-      } else if (this.currentIndex > slideCount) {
+      } else if (this.currentIndex >= this._getCloneCount() + slideCount) {
         this.currentIndex -= slideCount;
         this._updatePosition(true);
       }
@@ -234,11 +234,3 @@ Slidezy.prototype._updatePosition = function (instant = false) {
     this._updateNav();
   }
 };
-
-// Todo
-// 1. Làm navigation tab
-// 2. Option thay đổi nội dung bên trong nút điều hướng
-// 3. Làm auto play, tự động chuyển slide khi có option autoPlay: true
-// 4. Làm option quyết định lần next/prev là bao nhiêu slide.
-//  Ví dụ: có 3 slides trong viewport, khi bấm next/prev sẽ chuyển sang
-//  cụm 3 slides kế tiếp
